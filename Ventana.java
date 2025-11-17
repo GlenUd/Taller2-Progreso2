@@ -4,6 +4,7 @@ import java.util.Set;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.text.ParseException;
 
 public class Ventana extends JFrame {
 
@@ -22,7 +23,6 @@ public class Ventana extends JFrame {
     private JPanel PRODUCTOS;
     private JList<String> list1;
 
-
     private JPanel BUSCADOR;
     private JList<String> list2;
     private JButton btnBuscar;
@@ -30,20 +30,16 @@ public class Ventana extends JFrame {
     private JComboBox<String> cboBusquedaMes;
     private JLabel lblSelectMes;
 
-
     private Tienda tienda;
     private IBusquedaProducto buscador;
     private DefaultListModel<String> modeloListaVentas;
     private DefaultListModel<String> modeloListaBusqueda;
-
-
 
     private static final String[] MESES = {
             "1.Enero", "2.Febrero", "3.Marzo", "4.Abril",
             "5.Mayo", "6.Junio", "7.Julio", "8.Agosto",
             "9.Septiembre", "10.Octubre", "11.Noviembre", "12.Diciembre"
     };
-
 
     private void limpiarInventario() {
         tienda.getVentas().clear();
@@ -52,7 +48,6 @@ public class Ventana extends JFrame {
 
     public Ventana() {
 
-
         setContentPane(Principal);
 
         setTitle("Tienda en línea");
@@ -60,10 +55,8 @@ public class Ventana extends JFrame {
         setSize(900, 600);
         setLocationRelativeTo(null);
 
-
         tienda = new Tienda();
         buscador = new BusquedaLineal();
-
 
         modeloListaVentas = new DefaultListModel<>();
         list1.setModel(modeloListaVentas);
@@ -72,11 +65,26 @@ public class Ventana extends JFrame {
         list2.setModel(modeloListaBusqueda);
 
 
+        spiCantidad.setModel(new SpinnerNumberModel(0, 0, 1000, 1));
+
+
+
         tienda.agregarProducto(new Producto(1001, "Teclado", 50.0));
         tienda.agregarProducto(new Producto(1002, "Mouse", 15.0));
         tienda.agregarProducto(new Producto(1003, "Audífonos", 35.0));
 
         cargarProductosEnCombo();
+
+
+        List<Producto> productos = tienda.getProductos();
+        for (int i = 0; i < 5; i++) {
+            Producto p = productos.get(i % productos.size());
+            String mes = MESES[i];
+            int cantidad = i + 1;
+            tienda.registrarVenta(p, mes, cantidad);
+        }
+
+        actualizarListaVentas();
 
 
         btnAgregar.addActionListener(e -> agregarVenta());
@@ -88,11 +96,24 @@ public class Ventana extends JFrame {
         });
     }
 
-
     private void agregarVenta() {
         String nombre = (String) cboProductos.getSelectedItem();
         String mes = (String) cboMes.getSelectedItem();
+
+
+        try {
+
+            spiCantidad.commitEdit();
+        } catch (ParseException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Solo se permiten números en la cantidad.",
+                    "Error en cantidad",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         int cantidad = (Integer) spiCantidad.getValue();
+
 
         if (nombre == null || nombre.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Selecciona un producto.");
@@ -111,12 +132,10 @@ public class Ventana extends JFrame {
             return;
         }
 
-
         tienda.registrarVenta(producto, mes, cantidad);
         actualizarListaVentas();
         limpiarCampos();
     }
-
 
     private void actualizarListaVentas() {
         modeloListaVentas.clear();
@@ -138,7 +157,6 @@ public class Ventana extends JFrame {
         }
     }
 
-
     private void cargarProductosEnCombo() {
         cboProductos.removeAllItems();
         for (Producto p : tienda.getProductos()) {
@@ -158,7 +176,6 @@ public class Ventana extends JFrame {
         }
     }
 
-
     private void realizarBusqueda() {
         modeloListaBusqueda.clear();
 
@@ -174,9 +191,7 @@ public class Ventana extends JFrame {
             return;
         }
 
-
         Set<String> mesesValidos = obtenerMesesRango(mesSeleccionado);
-
 
         List<Venta> resultados = new ArrayList<>();
 
@@ -187,10 +202,22 @@ public class Ventana extends JFrame {
             try {
                 int idBuscado = Integer.parseInt(valor.trim());
 
+                boolean idExisteEnInventario = false;
+                for (Producto prod : tienda.getProductos()) {
+                    if (prod.getId() == idBuscado) {
+                        idExisteEnInventario = true;
+                        break;
+                    }
+                }
+
+                if (!idExisteEnInventario) {
+                    JOptionPane.showMessageDialog(this, "No se encontró esa ID en el inventario.");
+                    return;
+                }
+
+
                 for (Venta v : tienda.getVentas()) {
                     Producto p = v.getProducto();
-
-
                     if (p.getId() == idBuscado && mesesValidos.contains(v.getMes())) {
                         resultados.add(v);
                     }
@@ -209,7 +236,6 @@ public class Ventana extends JFrame {
 
             for (Venta v : tienda.getVentas()) {
                 Producto p = v.getProducto();
-
 
                 if (p.getNombre().equalsIgnoreCase(nombreBuscado)
                         && mesesValidos.contains(v.getMes())) {
@@ -263,8 +289,6 @@ public class Ventana extends JFrame {
 
         return conjunto;
     }
-
-
 
     private int indiceMes(String mes) {
         for (int i = 0; i < MESES.length; i++) {
